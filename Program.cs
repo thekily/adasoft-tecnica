@@ -1,10 +1,11 @@
 ﻿using System.IO;
+using System.Reflection;
 using ClosedXML.Excel;
 
 // See https://aka.ms/new-console-template for more information
 
-string directoryPath = @"/Users/crubio/projects/adasoft-tecnica/data";
-string directoryPathProcessed = @"/Users/crubio/projects/adasoft-tecnica/data-xlsx";
+string directoryPath = Path.Combine(Directory.GetCurrentDirectory(), "data");
+string directoryPathProcessed = Path.Combine(Directory.GetCurrentDirectory(), "data-xlsx");
 
 // Crear el observador del sistema de archivos
 FileSystemWatcher watcher = new FileSystemWatcher(directoryPath);
