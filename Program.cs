@@ -58,7 +58,7 @@ void ConvertTextToXlsx(string textFilePath, string xlsxFilePath)
 
       while ((line = reader.ReadLine()) != null)
       {
-        ProcessLine(worksheet, line, rowNumber);
+        WriteLine(worksheet, line, rowNumber);
 
         // Avanzar a la siguiente fila
         rowNumber++;
@@ -71,89 +71,119 @@ void ConvertTextToXlsx(string textFilePath, string xlsxFilePath)
   }
 }
 
-void ProcessLine(IXLWorksheet worksheet, string line, int rowNumber)
+void WriteLine(IXLWorksheet worksheet, string line, int rowNumber)
 {
-  // Identificar tipo de linea
-  LineType lineType = IdentifyLineType(line);
 
-  switch (lineType)
-  {
-    case LineType.Type0:
-      ProcessType0(worksheet, line, rowNumber);
-      break;
-    case LineType.Type1:
-      ProcessType1(worksheet, line, rowNumber);
-      break;
-    case LineType.Type9:
-      ProcessType9(worksheet, line, rowNumber);
-      break;
-    case LineType.TypeC:
-      ProcessTypeC(worksheet, line, rowNumber);
-      break;
-    case LineType.Unknown:
-      ProcessUnknown(worksheet, line, rowNumber);
-      break;
-  }
+  Line lineParsed = new Line(rowNumber, line);
+
+  lineParsed.WriteLine(worksheet);
 
 }
 
-void ProcessUnknown(IXLWorksheet worksheet, string line, int rowNumber)
-{
-  worksheet.Cell(rowNumber, 1).Value = "UNKNOWN";
-  worksheet.Cell(rowNumber, 2).Value = line;
-}
-
-void ProcessTypeC(IXLWorksheet worksheet, string line, int rowNumber)
-{
-  worksheet.Cell(rowNumber, 1).Value = "type C";
-  worksheet.Cell(rowNumber, 2).Value = line;
-}
-
-void ProcessType9(IXLWorksheet worksheet, string line, int rowNumber)
-{
-  worksheet.Cell(rowNumber, 1).Value = "type 9";
-  worksheet.Cell(rowNumber, 2).Value = line;
-}
-
-void ProcessType1(IXLWorksheet worksheet, string line, int rowNumber)
-{
-  worksheet.Cell(rowNumber, 1).Value = "type 1";
-  worksheet.Cell(rowNumber, 2).Value = line;
-}
-
-void ProcessType0(IXLWorksheet worksheet, string line, int rowNumber)
-{
-  worksheet.Cell(rowNumber, 1).Value = "type A";
-  worksheet.Cell(rowNumber, 2).Value = line;
-}
-
-LineType IdentifyLineType(string line)
-{
-  string idChar = line[14].ToString();
-
-  switch (idChar)
-  {
-    case "0":
-      return LineType.Type0;
-    case "1":
-      return LineType.Type1;
-    case "9":
-      return LineType.Type9;
-    case "C":
-      return LineType.TypeC;
-    default:
-      return LineType.Unknown;
-      // throw exception if we want to cancel de file processing and catch it on error
-      // throw new Exception("Invalid line type");
-  }
-}
 
 
-enum LineType
+public enum LineType
 {
   Type0,
   Type1,
   Type9,
   TypeC,
   Unknown
+}
+
+public class Line
+{
+  public int rowNumber { get; set; }
+  public string line { get; set; }
+  public LineType type { get; set; }
+  public IDictionary<string, string> fields = new Dictionary<string, string>();
+
+
+  public Line(int rowNumber, string line)
+  {
+    this.rowNumber = rowNumber;
+    this.line = line;
+    this.type = GetType();
+    this.fields = Parse();
+  }
+
+  private IDictionary<string, string> Parse()
+  {
+    IDictionary<string, string> fields = new Dictionary<string, string>();
+    LineStrategy strategy;
+    switch (type)
+    {
+      case LineType.Type0:
+        strategy = new LineType0();
+        break;
+      case LineType.Type1:
+        strategy = new LineType1();
+        break;
+      case LineType.Type9:
+        strategy = new LineType9();
+        break;
+      case LineType.TypeC:
+        strategy = new LineTypeC();
+        break;
+
+      default:
+        strategy = new LineTypeUnknown();
+        break;
+
+    }
+    return strategy.ProcessLine(line);
+  }
+
+  public override string ToString()
+  {
+    return line;
+  }
+
+  public LineType GetType()
+  {
+    string idChar = line[14].ToString();
+
+    switch (idChar)
+    {
+      case "0":
+        return LineType.Type0;
+      case "1":
+        return LineType.Type1;
+      case "9":
+        return LineType.Type9;
+      case "C":
+        return LineType.TypeC;
+      default:
+        return LineType.Unknown;
+        // throw exception if we want to cancel de file processing and catch it on error
+        // throw new Exception("Invalid line type");
+    }
+  }
+
+  public void WriteLine(IXLWorksheet worksheet)
+  {
+    foreach (var x in fields.Select((entry, index) => new { entry, index }))
+    {
+      worksheet.Cell(rowNumber, x.index + 1).Value = x.entry.Value;
+    }
+  }
+
+}
+
+public abstract class LineStrategy
+{
+  public abstract Dictionary<string, string> ProcessLine(string line);
+}
+
+
+
+class LineTypeUnknown : LineStrategy
+{
+
+  public override Dictionary<string, string> ProcessLine(string line)
+  {
+    Dictionary<string, string> fields = new Dictionary<string, string>();
+    return fields;
+  }
+
 }
